@@ -1,9 +1,20 @@
--- MacroMCP v5 tests. Run once against a freshly loaded schema.sql.
+-- MacroMCP tests. Run once against a freshly loaded schema.sql.
+-- 13 invariants carried over from the single-user version, plus T14-T18 for
+-- the thing multi-user actually adds: cross-user isolation.
 \set ON_ERROR_STOP off
 \pset format aligned
 
-\echo '=== T1: normal commit. Model supplies per-100g densities; server multiplies ==='
-SELECT jsonb_pretty(fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+\echo '=== T0: two users, each gets default settings automatically ==='
+INSERT INTO users (username, display_name) VALUES ('luke','Luke'), ('sam','Sam');
+SELECT u.username, s.timezone, s.atwater_tol_kcal
+  FROM users u JOIN user_settings s ON s.user_id = u.id ORDER BY u.username;
+\echo '(expected: both users present, both with default settings - no manual insert needed)'
+
+\set luke 1
+\set sam 2
+
+\echo '\n=== T1: normal commit. Model supplies per-100g densities; server multiplies ==='
+SELECT jsonb_pretty(fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','7oz chicken and a cup of rice','eaten_at','2026-08-19T19:40:00-04:00',
  'meal', jsonb_build_object('name','chicken and rice','name_source','derived',
                             'meal_type_key','dinner','meal_type_inferred',true),
@@ -19,10 +30,10 @@ SELECT jsonb_pretty(fn_commit_log(fn_new_staging_id(), jsonb_build_object(
      'quantity',jsonb_build_object('num',1,'den',1),'unit_label','cup','unit_class','standard_volume',
      'macro_source','llm_knowledge','resolution_confidence','user_confirmed'))))))
  #> '{logs,0,items}') AS committed_items;
-\echo '(expected: chicken 327.4 kcal, rice 205.4 kcal - server computed both)'
+\echo '(expected: chicken 327.4 kcal, rice 205.4 kcal - server computed both, owned by luke)'
 
 \echo '\n=== T2: ATWATER gate catches an incoherent estimate ==='
-SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','a protein bar','eaten_at','2026-08-19T15:00:00-04:00',
  'meal', jsonb_build_object('name','bar','meal_type_key','snack'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','bar',
@@ -33,7 +44,7 @@ SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
 \echo '(expected: ERROR - 700 stated but 4P+4C+9F implies 370)'
 
 \echo '\n=== T3: same payload passes with confirm_atwater ==='
-SELECT (fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT (fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','a protein bar','eaten_at','2026-08-19T15:00:00-04:00',
  'meal', jsonb_build_object('name','bar','meal_type_key','snack'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','bar',
@@ -44,7 +55,7 @@ SELECT (fn_commit_log(fn_new_staging_id(), jsonb_build_object(
  false, true) ->> 'meal_id') AS committed_with_confirm;
 
 \echo '\n=== T4: alcohol legitimately breaks Atwater; override records why ==='
-SELECT (fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT (fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','a glass of red wine','eaten_at','2026-08-19T20:30:00-04:00',
  'meal', jsonb_build_object('name','wine','meal_type_key','dinner'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','wine',
@@ -54,10 +65,10 @@ SELECT (fn_commit_log(fn_new_staging_id(), jsonb_build_object(
     'atwater_override','alcohol contributes 7 kcal/g',
     'macro_source','llm_knowledge','resolution_confidence','estimated'))))))
  ->> 'meal_id') AS wine_ok;
-SELECT food_name, kcal_per_100g, atwater_kcal, atwater_override FROM v_atwater_overrides;
+SELECT food_name, kcal_per_100g, atwater_kcal, atwater_override FROM v_atwater_overrides WHERE user_id = :luke;
 
 \echo '\n=== T5: a self-consistent but WRONG estimate passes. Atwater cannot see it ==='
-SELECT (fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT (fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','a bagel','eaten_at','2026-08-19T08:00:00-04:00',
  'meal', jsonb_build_object('name','bagel','meal_type_key','breakfast'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','bagel',
@@ -69,7 +80,7 @@ SELECT (fn_commit_log(fn_new_staging_id(), jsonb_build_object(
 \echo '(a real bagel is ~270 kcal/100g. Internally coherent, so it commits. This is the ceiling of the check.)'
 
 \echo '\n=== T6: missing macros are NOT storable ==='
-SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','grandmas sauce','eaten_at','2026-08-19T12:00:00-04:00',
  'meal', jsonb_build_object('name','sauce','meal_type_key','lunch'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','sauce',
@@ -79,7 +90,7 @@ SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
 \echo '(expected: ERROR - all four per-100g macros required)'
 
 \echo '\n=== T7: physically impossible densities are rejected outright ==='
-SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','mystery','eaten_at','2026-08-19T12:00:00-04:00',
  'meal', jsonb_build_object('name','mystery','meal_type_key','lunch'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','mystery',
@@ -90,7 +101,7 @@ SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
 \echo '(expected: ERROR - P+C+F = 150g per 100g is impossible)'
 
 \echo '\n=== T8: item-level fraction still scales grams only ==='
-SELECT jsonb_pretty(fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT jsonb_pretty(fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','half a cheeseburger and all the fries','eaten_at','2026-08-20T18:00:00-04:00',
  'meal', jsonb_build_object('name','burger and fries','meal_type_key','dinner'),
  'gaps', jsonb_build_array(jsonb_build_object('kind','composite','item_ordinal',1,'status','answered','is_material',true)),
@@ -112,7 +123,7 @@ SELECT jsonb_pretty(fn_commit_log(fn_new_staging_id(), jsonb_build_object(
 \echo '(expected: bun 30g and patty 56.5g; fries stay 117g)'
 
 \echo '\n=== T9: composite guard still applies with no reference DB ==='
-SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
+SELECT fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
  'raw_utterance','a burrito','eaten_at','2026-08-20T13:00:00-04:00',
  'meal', jsonb_build_object('name','burrito','meal_type_key','lunch'),
  'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','burrito',
@@ -123,21 +134,70 @@ SELECT fn_commit_log(fn_new_staging_id(), jsonb_build_object(
       'macro_source','llm_knowledge','resolution_confidence','estimated'),
     jsonb_build_object('ordinal',2,'food_name','sour cream','grams',30,
       'kcal_per_100g',193,'protein_per_100g',2.4,'carbs_per_100g',4.6,'fat_per_100g',19,
-      'macro_source','llm_estimate','resolution_confidence','estimated')))))); 
+      'macro_source','llm_estimate','resolution_confidence','estimated'))))));
 \echo '(expected: ERROR - the sour cream nobody mentioned is exactly what this guards)'
 
-\echo '\n=== T10: trend grouping via the generated slug ==='
+\echo '\n=== T10: trend grouping via the generated slug (luke only) ==='
 SELECT food_key, example_name, log_date, round(grams,1) AS grams, round(kcal,1) AS kcal
-  FROM v_food_trends ORDER BY log_date, food_key;
+  FROM v_food_trends WHERE user_id = :luke ORDER BY log_date, food_key;
 
-\echo '\n=== T11: provenance mix, the only honesty signal left ==='
+\echo '\n=== T11: provenance mix, the only honesty signal left (luke only) ==='
 SELECT log_date, ingredients, pct_kcal_llm_knowledge, pct_kcal_llm_estimate,
-       pct_kcal_user_stated FROM v_daily_data_quality ORDER BY log_date;
+       pct_kcal_user_stated FROM v_daily_data_quality WHERE user_id = :luke ORDER BY log_date;
 
-\echo '\n=== T12: day totals ==='
-SELECT log_date, round(kcal,1) AS kcal, round(protein_g,1) AS protein FROM v_daily_totals ORDER BY 1;
+\echo '\n=== T12: day totals (luke only) ==='
+SELECT log_date, round(kcal,1) AS kcal, round(protein_g,1) AS protein
+  FROM v_daily_totals WHERE user_id = :luke ORDER BY 1;
 
 \echo '\n=== T13: append-only + idempotency still hold ==='
 UPDATE meal_logs SET eaten_at = now() WHERE id = 1;
 DELETE FROM item_ingredients WHERE id = 1;
 SELECT count(*) AS logs_before FROM meal_logs;
+
+-- ============================= MULTI-USER TESTS ==============================
+
+\echo '\n=== T14: same content, same day, different users - NOT a duplicate ==='
+SELECT (fn_commit_log(:sam, fn_new_staging_id(), jsonb_build_object(
+ 'raw_utterance','7oz chicken and a cup of rice','eaten_at','2026-08-19T19:41:00-04:00',
+ 'meal', jsonb_build_object('name','chicken and rice','name_source','derived',
+                            'meal_type_key','dinner','meal_type_inferred',true),
+ 'items', jsonb_build_array(
+  jsonb_build_object('ordinal',1,'name','chicken','raw_text','7oz chicken','span',jsonb_build_array(0,11),
+   'ingredients',jsonb_build_array(jsonb_build_object('ordinal',1,'food_name','chicken breast, cooked',
+     'grams',198.4,'kcal_per_100g',165,'protein_per_100g',31,'carbs_per_100g',0,'fat_per_100g',3.6,
+     'macro_source','llm_knowledge','resolution_confidence','user_confirmed'))),
+  jsonb_build_object('ordinal',2,'name','rice','raw_text','a cup of rice','span',jsonb_build_array(16,29),
+   'ingredients',jsonb_build_array(jsonb_build_object('ordinal',1,'food_name','white rice, cooked',
+     'grams',158,'kcal_per_100g',130,'protein_per_100g',2.7,'carbs_per_100g',28,'fat_per_100g',0.3,
+     'macro_source','llm_knowledge','resolution_confidence','user_confirmed'))))))
+ ->> 'meal_id') AS sam_meal_id;
+\echo '(expected: succeeds - sam logging the identical meal luke logged 1 minute apart is not a cross-user dup)'
+
+\echo '\n=== T15: v_daily_totals and v_food_trends keep users separate, not merged ==='
+SELECT user_id, log_date, round(kcal,1) AS kcal FROM v_daily_totals
+  WHERE log_date = '2026-08-19' ORDER BY user_id;
+\echo '(expected: TWO rows for 2026-08-19 - luke ~1178.6 (his full day), sam ~532.8 (just chicken+rice) - not one merged row)'
+SELECT user_id, food_key, log_date, round(kcal,1) AS kcal FROM v_food_trends
+  WHERE food_key = 'chicken_breast_cooked' ORDER BY user_id;
+\echo '(expected: TWO rows, one per user)'
+
+\echo '\n=== T16: user cannot rename another user''s meal ==='
+SELECT id AS lukes_burrito_meal_attempt FROM meals WHERE user_id = :luke ORDER BY id DESC LIMIT 1 \gset
+SELECT fn_rename_meal(:sam, :lukes_burrito_meal_attempt, 'stolen name');
+\echo '(expected: ERROR - unknown meal_id for this user)'
+
+\echo '\n=== T17: user cannot attach a log to another user''s meal_id ==='
+SELECT id AS lukes_dinner_meal FROM meals WHERE user_id = :luke AND meal_type_key = 'dinner' ORDER BY id LIMIT 1 \gset
+SELECT fn_commit_log(:sam, fn_new_staging_id(), jsonb_build_object(
+ 'raw_utterance','and a side salad','eaten_at','2026-08-19T19:45:00-04:00',
+ 'meal', jsonb_build_object('meal_id', :lukes_dinner_meal),
+ 'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','side salad',
+  'raw_text','a side salad','span',jsonb_build_array(0,12),
+  'ingredients',jsonb_build_array(jsonb_build_object('ordinal',1,'food_name','side salad',
+    'grams',100,'kcal_per_100g',20,'protein_per_100g',1,'carbs_per_100g',4,'fat_per_100g',0.2,
+    'macro_source','llm_estimate','resolution_confidence','estimated'))))));
+\echo '(expected: ERROR - unknown meal_id for this user, even though the meal_id is real and belongs to luke)'
+
+\echo '\n=== T18: fn_meal_readback returns NULL, not another user''s data, on a cross-user lookup ==='
+SELECT fn_meal_readback(:sam, :lukes_dinner_meal) IS NULL AS correctly_hidden;
+\echo '(expected: t)'

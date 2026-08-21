@@ -103,6 +103,7 @@ Why each level exists:
 
 - **meals** because an eating event has a name and can be logged more than once.
   "I forgot the sauce" attaches to the meal rather than creating a second dinner.
+  This is also the level a meal is *owned* at — see "Multi-user" below.
 - **meal_logs** because forgetting something is normal, and because *when you ate*
   and *when you told the system* are different facts worth keeping apart.
 - **log_items** because **the portion fraction lives here.** "Half the burger and
@@ -129,6 +130,38 @@ trust faster than any single wrong entry.
 
 ---
 
+## Multi-user
+
+MacroMCP started single-user and is now built for a small group — a
+household or a few friends sharing one self-hosted instance, not a public
+multi-tenant product.
+
+**Every meal is owned by a user.** `meals.user_id` is the source of truth;
+everything below it (`meal_logs`, `log_items`, `item_ingredients`) is scoped
+by joining up to it rather than carrying its own copy. Every commit-path
+function — `commit_log`, `rename_meal`, `supersede_log`,
+`find_attachable_meals` — takes the calling user's id as an explicit
+argument and checks ownership before doing anything, the same way
+`staging_id` is server-minted rather than trusted from the model.
+
+**What multi-user buys:** two people can share one instance without their
+logs, duplicate-detection, or trends colliding. Sam logging the same chicken
+and rice Luke logged five minutes earlier isn't a duplicate. Luke's Tuesday
+total isn't quietly merged with Sam's.
+
+**What it deliberately doesn't include:** authentication. There's no
+password or token in this schema — `user_id` is trusted as given, and
+resolving *who's actually calling* (API key, login session, one MCP server
+per person) is an API-layer decision, not a database one. There's also no
+sharing model: users are fully isolated from each other, not members of a
+household that can see each other's logs. If shared visibility turns out to
+matter, that's an additive feature on top of this, not a rework of it.
+
+See `docs/design-notes.md` for the full list of what got a cross-user guard
+and why, and the tradeoffs behind skipping row-level security for now.
+
+---
+
 ## The v0 bet
 
 **No reference database.** No USDA ingest, no Open Food Facts, no barcode path,
@@ -139,7 +172,7 @@ This is a real bet, so here's both sides.
 
 **For:** modern models know that chicken breast is ~165 kcal/100g and that a cup
 of cooked rice is ~158g. Looking that up costs latency, and slow intake means no
-intake. It removes an entire ingest pipeline from v0. And history gets **frozen
+intake. It removes an entire ingest pipeline. And history gets **frozen
 at log time** — no upstream data source can silently change what your past logs
 say.
 
@@ -162,6 +195,11 @@ or `user_stated`. `v_daily_data_quality` reports what share of a day's calories
 came from each. A day that's 80% model-guessed deserves different trust than one
 that's 80% label-read, and this is the only thing that can tell you which you had.
 
+Note: barcode lookup is on the deferred list below, and it's downstream of
+this same bet, not a separate cut — there's no UPC→macro lookup table because
+there's no reference database at all. Building one is what un-defers both at
+once.
+
 ---
 
 ## Design decisions worth knowing
@@ -174,17 +212,17 @@ takes the payload as an argument rather than reading a table.
 **Duplicates are identified by content, not by the clock.** A `(meal, timestamp)`
 key would reject "oh, and a banana" — the most common logging pattern there is.
 Instead: hash the resolved ingredients, compare within a window against the
-existing row's timestamp. Two-scoped (same meal / other meal), both soft, because
-two identical protein shakes in one day is real.
+existing row's timestamp, scoped to one user. Two-scoped (same meal / other
+meal), both soft, because two identical protein shakes in one day is real.
 
 **Idempotency comes from one unique column.** The server mints a `staging_id`; it
-is UNIQUE on the log row. Retries, agent-loop re-fires, and concurrent calls all
+is UNIQUE across all users. Retries, agent-loop re-fires, and concurrent calls all
 return the existing entry instead of duplicating.
 
 **Attachment is never silent.** Attaching "I forgot the sauce" to the *wrong*
 meal is worse than creating a spurious one, because it corrupts a meal that was
-already correct. The server proposes candidates; a single match still requires
-confirmation.
+already correct. The server proposes candidates within the caller's own meals;
+a single match still requires confirmation.
 
 **Names never regenerate.** Add the sauce you forgot and "chicken and rice" stays
 "chicken and rice" rather than becoming "chicken, rice, and sriracha". A name that
@@ -201,25 +239,32 @@ is still recorded as `estimated`. The system never launders one into the other.
 
 ## What's deliberately not in v0
 
-- Barcode lookup
-- Prior-resolution reuse ("same as last time?") — the main friction fix, and its
+- **Barcode lookup**, and the reference food database it depends on. No
+  USDA/OFF ingest, no UPC lookup table — this is the same cut as "no reference
+  database" above, not two separate omissions.
+- **Prior-resolution reuse** ("same as last time?") — the main friction fix, and its
   absence means every meal pays full confirmation cost
-- Batch tracking (nothing enforces that fractions of one dish sum to ≤ 1)
-- Recipe templates
-- Micronutrients — when they return, add a separate long-format table rather than
+- **Batch tracking** (nothing enforces that fractions of one dish sum to ≤ 1)
+- **Recipe templates**
+- **Micronutrients** — when they return, add a separate long-format table rather than
   migrating back, since macros and micros have different shapes and query patterns
-- Multi-user
+- **Authentication and cross-user sharing** — see "Multi-user" above. `user_id`
+  scoping exists; verifying who a `user_id` actually is, and any notion of
+  users sharing visibility into each other's logs, does not.
 
 ---
 
 ## Stack
 
-FastAPI + Postgres 16, single-user, self-hosted. Exposed over MCP so any MCP
-client can be the front end.
+FastAPI + Postgres 16, small multi-user, self-hosted. Exposed over MCP so any
+MCP client can be the front end.
 
 ## Files
 
-- `db/schema.sql` — full DDL, commit gate, rollup views. Loads clean on PG16.
-- `db/tests.sql` — 13 invariant tests, all passing.
-- `docs/design-notes.md` — implementation brief, payload contract, sharp edges.
-- `docs/erd/erd.svg` / `.png` — schema diagram.
+- `db/schema.sql` — full DDL, multi-user commit gate, rollup views. Loads clean on PG16.
+- `db/tests.sql` — 18 invariant tests (13 core, 5 cross-user isolation checks), all passing.
+- `docs/design-notes.md` — full design rationale, the multi-user tradeoffs, sharp edges.
+- `docs/intake-agent.md` — the system prompt and tool/function-calling contract for the
+  conversational front end (GPT Realtime mini), matched field-for-field to `fn_commit_log`'s payload.
+- `docs/erd/` — schema diagram (still shows the single-user shape; not yet regenerated for multi-user).
+- prior single-user design history: `git log db/schema.sql`.
