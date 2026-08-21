@@ -9,10 +9,24 @@ import postgres from "postgres";
 // own connection - a per-instance pool bigger than 1 multiplies that, and
 // Postgres's own max_connections is a shared, finite resource across all of
 // them. Closing idle connections quickly keeps a cold function from holding
-// one open for no reason.
+// one open for no reason. In production DATABASE_URL should point at
+// Neon's POOLED host (the "-pooler" hostname, PgBouncer in transaction
+// mode) for exactly this reason - the direct host has a much smaller
+// connection ceiling, meant for a handful of long-lived connections, not
+// many short-lived serverless ones.
+//
+// prepare: false - required alongside a pooled/transaction-mode
+// connection. postgres.js uses server-side prepared statements by
+// default, which don't survive PgBouncer routing consecutive queries in
+// one "session" to different backend connections - a statement prepared
+// on one backend doesn't exist on the next. Against the direct host this
+// would work fine either way; disabling it is what makes it also safe
+// against the pooler, so leave it off unconditionally rather than
+// conditionally on which host happens to be configured.
 const sql = postgres(process.env.DATABASE_URL ?? "postgresql:///macromcp", {
   max: 1,
   idle_timeout: 20,
+  prepare: false,
 });
 
 export interface AppUser {

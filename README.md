@@ -256,22 +256,24 @@ is still recorded as `estimated`. The system never launders one into the other.
 
 ## Stack
 
-FastAPI + Postgres 16, small multi-user, self-hosted. Exposed over MCP so any
-MCP client can be the front end.
+Python (MCP SDK) + Postgres, small multi-user. A Next.js website handles
+Auth0 login; the MCP server is exposed over MCP so any MCP client (Claude,
+ChatGPT) can be the front end, and can run either as a trusted local
+process or as a real network-facing service with per-request auth - see
+"Running it" below. Deployment: website on Vercel, database on Neon (see
+`docs/deployment.md`); the resource server isn't deployed anywhere yet.
 
 ## Running it
 
 The MCP server (`server/`) is a thin adapter: it registers each tool from
-`docs/intake-agent.md`'s contract, resolves this process's user_id once at
-startup, and calls the matching SQL function or view for every call. It has
-no logic of its own beyond that — the database is still where every
-invariant is actually enforced.
+`docs/intake-agent.md`'s contract and calls the matching SQL function or
+view for every call. It has no logic of its own beyond that — the database
+is still where every invariant is actually enforced.
 
-One server process = one user (see `server/config.py`). This is the answer
-to the "how does a call resolve to a user_id" question from `docs/
-design-notes.md`: for MCP specifically, each person runs their own server
-instance, the same way Claude Desktop/Code launch one subprocess per
-configured tool.
+Two ways to run it (`server/config.py`), matching two different consumers:
+
+**stdio — one process = one user, no auth.** What Claude Desktop/Code use
+locally today; the process itself is the trusted identity.
 
 ```sh
 python3 -m venv .venv && source .venv/bin/activate
@@ -286,24 +288,36 @@ export $(cat .env | xargs)
 python -m server.server
 ```
 
-Point an MCP client (Claude Desktop, Claude Code, an OpenAI Realtime
-function-call bridge) at `python -m server.server` with that environment,
-and every tool in `docs/intake-agent.md` is live.
+**streamable-http — network-facing, per-request Auth0 auth.** Identity is
+resolved from a verified bearer token on every call, not a fixed process
+env var - see `docs/auth-setup.md` Part D.
+
+```sh
+MACROMCP_TRANSPORT=streamable-http AUTH0_DOMAIN=... AUTH0_AUDIENCE=... \
+  python -m server.server
+```
+
+Point an MCP client (Claude Desktop, Claude Code, ChatGPT's Apps/connectors)
+at whichever mode applies, and every tool in `docs/intake-agent.md` is live.
 
 The GPT Realtime mini voice front end described in `docs/intake-agent.md`
-is not wired up yet — this server just needs *some* MCP-speaking or
-function-calling client in front of it to be useful end to end.
+is a separate integration, not an MCP client - it talks to its own app
+backend directly, per the design notes there. Not built yet.
 
 ## Files
 
-- `db/schema.sql` — full DDL, multi-user commit gate, rollup views. Loads clean on PG16.
-- `db/tests.sql` — 18 invariant tests (13 core, 5 cross-user isolation checks), all passing.
+- `db/schema.sql` — full DDL, multi-user commit gate, rollup views. Loads clean on PG16+.
+- `db/tests.sql` — 20 invariant tests (13 core, 5 cross-user isolation, 2 Auth0 identity linking), all passing.
 - `docs/design-notes.md` — full design rationale, the multi-user tradeoffs, sharp edges.
 - `docs/intake-agent.md` — the system prompt and tool/function-calling contract for the
   conversational front end (GPT Realtime mini), matched field-for-field to `fn_commit_log`'s payload.
+- `docs/auth-setup.md` — the Auth0 setup runbook (tenant, DCR, Google login, the website's
+  Application credentials) and how `server/`'s streamable-http mode plugs into it.
+- `docs/deployment.md` — hosting notes (Neon, Vercel) discovered while actually deploying.
 - `docs/erd/` — schema diagram (still shows the single-user shape; not yet regenerated for multi-user).
 - `server/` — the MCP server implementing the tool contract (`db.py` Postgres access,
-  `models.py` payload validation, `tools.py` business logic, `server.py` tool registration).
+  `models.py` payload validation, `tools.py` business logic, `auth.py` Auth0 token
+  verification, `server.py` tool registration + transport selection).
 - `web/` — the Next.js site: Auth0 login (Google, for now), and just-in-time
   provisioning that links a verified Auth0 identity to a `users` row
   (`src/lib/db.ts`) the first time someone logs in. `npm install && npm run dev`
