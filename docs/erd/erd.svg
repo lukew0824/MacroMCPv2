@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1180" width="1420" height="1180" font-family="Inter, system-ui, -apple-system, sans-serif">
+<defs>
+  <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8A8A82"/></marker>
+  <marker id="arwa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#B45309"/></marker>
+  <style>
+    .tname { font-size: 14px; font-weight: 700; fill: #FFFFFF; letter-spacing: .2px; }
+    .tsub  { font-size: 9.5px; font-style: italic; opacity: .85; }
+    .fld   { font-size: 11px; fill: #1C1C1A; font-family: ui-monospace, "DejaVu Sans Mono", Menlo, monospace; }
+    .badge { font-size: 8.5px; font-weight: 700; letter-spacing: .4px; }
+    .note  { font-size: 8.5px; fill: #8A8A82; font-style: italic; }
+    .elbl  { font-size: 9.5px; fill: #6B6B66; font-family: ui-monospace, "DejaVu Sans Mono", Menlo, monospace; }
+    .ttl   { font-size: 22px; font-weight: 700; fill: #1C1C1A; }
+    .sub   { font-size: 12px; fill: #6B6B66; }
+    .lg    { font-size: 11px; fill: #3F3F3A; }
+  </style>
+</defs>
+<rect width="1420" height="1180" fill="#FAFAF8"/>
+<text x="40" y="38" class="ttl">MacroMCP &#8212; schema v5</text>
+<text x="40" y="58" class="sub">meals &#8250; meal_logs &#8250; log_items &#8250; item_ingredients. Macros only. No reference database. Macro densities come from the model or the user, per 100g; the server does every multiplication.</text>
+<path d="M 330 230 L 370.0 230 L 370.0 230 L 404 230" fill="none" stroke="#0F766E" stroke-width="1.6" marker-end="url(#arw)"/>
+<rect x="345.2" y="213.0" width="49.599999999999994" height="15" rx="3" fill="#FAFAF8"/>
+<text x="370.0" y="224.0" class="elbl" text-anchor="middle" style="fill:#0F766E">commit</text>
+<path d="M 404 310 L 336.0 310 L 336.0 330 L 330 330" fill="none" stroke="#B45309" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arwa)"/>
+<rect x="338.3" y="315.0" width="69.4" height="15" rx="3" fill="#FAFAF8"/>
+<text x="373.0" y="326.0" class="elbl" text-anchor="middle" style="fill:#B45309">read back</text>
+<path d="M 535.0 470 L 535.0 399" fill="none" stroke="#8A8A82" stroke-width="1.6" marker-end="url(#arw)"/>
+<rect x="536.0" y="422.5" width="56.199999999999996" height="15" rx="3" fill="#FAFAF8"/>
+<text x="541.0" y="433.5" class="elbl" text-anchor="start" style="fill:#8A8A82">meal_id</text>
+<path d="M 750 540 L 708.0 540 L 708.0 660 L 666 660" fill="none" stroke="#8A8A82" stroke-width="1.6" marker-end="url(#arw)"/>
+<rect x="683.2" y="585.0" width="49.599999999999994" height="15" rx="3" fill="#FAFAF8"/>
+<text x="708.0" y="596.0" class="elbl" text-anchor="middle" style="fill:#8A8A82">log_id</text>
+<path d="M 1090 250 L 1048.0 250 L 1048.0 570 L 1006 570" fill="none" stroke="#8A8A82" stroke-width="1.6" marker-end="url(#arw)"/>
+<rect x="1019.9000000000001" y="395.0" width="56.199999999999996" height="15" rx="3" fill="#FAFAF8"/>
+<text x="1048.0" y="406.0" class="elbl" text-anchor="middle" style="fill:#8A8A82">item_id</text>
+<path d="M 410 370 L 347.3 370 L 347.3 770 L 296 770" fill="none" stroke="#8A8A82" stroke-width="1.6" marker-end="url(#arw)"/>
+<rect x="299.40000000000003" y="555.0" width="95.8" height="15" rx="3" fill="#FAFAF8"/>
+<text x="347.3" y="566.0" class="elbl" text-anchor="middle" style="fill:#8A8A82">meal_type_key</text>
+<path d="M 750 870 L 703.8 870 L 703.8 770 L 666 770" fill="none" stroke="#8A8A82" stroke-width="1.6" marker-end="url(#arw)"/>
+<rect x="679.0" y="805.0" width="49.599999999999994" height="15" rx="3" fill="#FAFAF8"/>
+<text x="703.8" y="816.0" class="elbl" text-anchor="middle" style="fill:#8A8A82">log_id</text>
+<rect x="410" y="180" width="250" height="213" rx="7" fill="#E4F2EF" stroke="#0F766E" stroke-width="1.3"/>
+<path d="M 410 214 L 410 187 Q 410 180 417 180 L 653 180 Q 660 180 660 187 L 660 214 Z" fill="#0F766E"/>
+<text x="421" y="202" class="tname">meals</text>
+<text x="421" y="227" class="tsub" fill="#0A544E">the eating event. NAME lives here</text>
+<text x="421" y="247" class="fld" font-weight="600">id</text>
+<text x="650" y="247" class="badge" fill="#0A544E" text-anchor="end">PK</text>
+<text x="421" y="264" class="fld" font-weight="400">name</text>
+<text x="650" y="264" class="note" text-anchor="end">derived or user</text>
+<text x="421" y="281" class="fld" font-weight="400">name_source</text>
+<text x="650" y="281" class="note" text-anchor="end">never regenerated</text>
+<text x="421" y="298" class="fld" font-weight="400">meal_type_key</text>
+<text x="650" y="298" class="badge" fill="#0A544E" text-anchor="end">FK</text>
+<text x="421" y="315" class="fld" font-weight="400">meal_type_inferred</text>
+<text x="421" y="332" class="fld" font-weight="400">log_date</text>
+<text x="650" y="332" class="note" text-anchor="end">from FIRST log only</text>
+<text x="421" y="349" class="fld" font-weight="400">tz</text>
+<text x="421" y="366" class="fld" font-weight="400">derived_from_meal_id</text>
+<text x="650" y="366" class="badge" fill="#0A544E" text-anchor="end">FK</text>
+<text x="421" y="383" class="fld" font-weight="400">created_at</text>
+<rect x="410" y="470" width="250" height="230" rx="7" fill="#E4F2EF" stroke="#0F766E" stroke-width="1.3"/>
+<path d="M 410 504 L 410 477 Q 410 470 417 470 L 653 470 Q 660 470 660 477 L 660 504 Z" fill="#0F766E"/>
+<text x="421" y="492" class="tname">meal_logs</text>
+<text x="421" y="517" class="tsub" fill="#0A544E">one submission. APPEND-ONLY</text>
+<text x="421" y="537" class="fld" font-weight="600">id</text>
+<text x="650" y="537" class="badge" fill="#0A544E" text-anchor="end">PK</text>
+<text x="421" y="554" class="fld" font-weight="400">meal_id</text>
+<text x="650" y="554" class="badge" fill="#0A544E" text-anchor="end">FK</text>
+<text x="421" y="571" class="fld" font-weight="400">eaten_at</text>
+<text x="650" y="571" class="note" text-anchor="end">what it asserts</text>
+<text x="421" y="588" class="fld" font-weight="400">logged_at</text>
+<text x="650" y="588" class="note" text-anchor="end">when it was written</text>
+<text x="421" y="605" class="fld" font-weight="400">content_hash</text>
+<text x="650" y="605" class="note" text-anchor="end">dup detection</text>
+<text x="421" y="622" class="fld" font-weight="400">staging_id</text>
+<text x="650" y="622" class="note" text-anchor="end">UNIQUE = idempotency</text>
+<text x="421" y="639" class="fld" font-weight="400">supersedes_log_id</text>
+<text x="650" y="639" class="badge" fill="#0A544E" text-anchor="end">FK</text>
+<text x="421" y="656" class="fld" font-weight="400">is_superseded</text>
+<text x="421" y="673" class="fld" font-weight="400">raw_utterance</text>
+<text x="421" y="690" class="fld" font-weight="400">note</text>
+<rect x="750" y="470" width="250" height="196" rx="7" fill="#E4F2EF" stroke="#0F766E" stroke-width="1.3"/>
+<path d="M 750 504 L 750 477 Q 750 470 757 470 L 993 470 Q 1000 470 1000 477 L 1000 504 Z" fill="#0F766E"/>
+<text x="761" y="492" class="tname">log_items</text>
+<text x="761" y="517" class="tsub" fill="#0A544E">one named thing. APPEND-ONLY</text>
+<text x="761" y="537" class="fld" font-weight="600">id</text>
+<text x="990" y="537" class="badge" fill="#0A544E" text-anchor="end">PK</text>
+<text x="761" y="554" class="fld" font-weight="400">log_id</text>
+<text x="990" y="554" class="badge" fill="#0A544E" text-anchor="end">FK</text>
+<text x="761" y="571" class="fld" font-weight="400">ordinal</text>
+<text x="761" y="588" class="fld" font-weight="400">name</text>
+<text x="990" y="588" class="note" text-anchor="end">'cheeseburger'</text>
+<text x="761" y="605" class="fld" font-weight="400">portion_fraction_num</text>
+<text x="990" y="605" class="note" text-anchor="end">THE FRACTION</text>
+<text x="761" y="622" class="fld" font-weight="400">portion_fraction_den</text>
+<text x="990" y="622" class="note" text-anchor="end">lives at ITEM level</text>
+<text x="761" y="639" class="fld" font-weight="400">raw_text</text>
+<text x="990" y="639" class="note" text-anchor="end">anchor, REQUIRED</text>
+<text x="761" y="656" class="fld" font-weight="400">span_start / span_end</text>
+<text x="990" y="656" class="note" text-anchor="end">anchor, REQUIRED</text>
+<rect x="1090" y="180" width="250" height="417" rx="7" fill="#E4F2EF" stroke="#0F766E" stroke-width="1.3"/>
+<path d="M 1090 214 L 1090 187 Q 1090 180 1097 180 L 1333 180 Q 1340 180 1340 187 L 1340 214 Z" fill="#0F766E"/>
+<text x="1101" y="202" class="tname">item_ingredients</text>
+<text x="1101" y="227" class="tsub" fill="#0A544E">macros live HERE. no reference table</text>
+<text x="1101" y="247" class="fld" font-weight="600">id</text>
+<text x="1330" y="247" class="badge" fill="#0A544E" text-anchor="end">PK</text>
+<text x="1101" y="264" class="fld" font-weight="400">item_id</text>
+<text x="1330" y="264" class="badge" fill="#0A544E" text-anchor="end">FK</text>
+<text x="1101" y="281" class="fld" font-weight="400">ordinal</text>
+<text x="1101" y="298" class="fld" font-weight="400">food_name</text>
+<text x="1330" y="298" class="note" text-anchor="end">identity is just a name</text>
+<text x="1101" y="315" class="fld" font-weight="400">food_key</text>
+<text x="1330" y="315" class="note" text-anchor="end">GENERATED slug, trends</text>
+<text x="1101" y="332" class="fld" font-weight="400">grams</text>
+<text x="1330" y="332" class="note" text-anchor="end">after item fraction</text>
+<text x="1101" y="349" class="fld" font-weight="400">grams_before_fraction</text>
+<text x="1101" y="366" class="fld" font-weight="400">kcal_per_100g</text>
+<text x="1330" y="366" class="note" text-anchor="end">NOT NULL</text>
+<text x="1101" y="383" class="fld" font-weight="400">protein_per_100g</text>
+<text x="1330" y="383" class="note" text-anchor="end">NOT NULL</text>
+<text x="1101" y="400" class="fld" font-weight="400">carbs_per_100g</text>
+<text x="1330" y="400" class="note" text-anchor="end">NOT NULL</text>
+<text x="1101" y="417" class="fld" font-weight="400">fat_per_100g</text>
+<text x="1330" y="417" class="note" text-anchor="end">NOT NULL</text>
+<text x="1101" y="434" class="fld" font-weight="400">fiber_per_100g</text>
+<text x="1330" y="434" class="note" text-anchor="end">nullable</text>
+<text x="1101" y="451" class="fld" font-weight="400">atwater_override</text>
+<text x="1330" y="451" class="note" text-anchor="end">why kcal != 4P+4C+9F</text>
+<text x="1101" y="468" class="fld" font-weight="400">macro_source</text>
+<text x="1330" y="468" class="note" text-anchor="end">llm / user</text>
+<text x="1101" y="485" class="fld" font-weight="400">resolution_confidence</text>
+<text x="1101" y="502" class="fld" font-weight="400">quantity_num / den</text>
+<text x="1330" y="502" class="note" text-anchor="end">what the USER said</text>
+<text x="1101" y="519" class="fld" font-weight="400">unit_label</text>
+<text x="1330" y="519" class="note" text-anchor="end">what the USER said</text>
+<text x="1101" y="536" class="fld" font-weight="400">unit_class_used</text>
+<text x="1101" y="553" class="fld" font-weight="400">quantity_min / max</text>
+<text x="1330" y="553" class="note" text-anchor="end">ranges, not midpoints</text>
+<text x="1101" y="570" class="fld" font-weight="400">raw_text</text>
+<text x="1330" y="570" class="note" text-anchor="end">NULLABLE here</text>
+<text x="1101" y="587" class="fld" font-weight="400">span_start / span_end</text>
+<text x="1330" y="587" class="note" text-anchor="end">NULLABLE here</text>
+<rect x="40" y="710" width="250" height="179" rx="7" fill="#EEF1F4" stroke="#475569" stroke-width="1.3"/>
+<path d="M 40 744 L 40 717 Q 40 710 47 710 L 283 710 Q 290 710 290 717 L 290 744 Z" fill="#475569"/>
+<text x="51" y="732" class="tname">meal_types</text>
+<text x="51" y="757" class="tsub" fill="#334155">normalized keys, not free text</text>
+<text x="51" y="777" class="fld" font-weight="600">key</text>
+<text x="280" y="777" class="badge" fill="#334155" text-anchor="end">PK</text>
+<text x="51" y="794" class="fld" font-weight="400">display_name</text>
+<text x="51" y="811" class="fld" font-weight="400">ordinal</text>
+<text x="280" y="811" class="note" text-anchor="end">lunch before dinner</text>
+<text x="51" y="828" class="fld" font-weight="400">is_builtin</text>
+<text x="51" y="845" class="fld" font-weight="400">dup_window_minutes</text>
+<text x="280" y="845" class="note" text-anchor="end">dup + attach</text>
+<text x="51" y="862" class="fld" font-weight="400">infer_from_local</text>
+<text x="51" y="879" class="fld" font-weight="400">infer_to_local</text>
+<rect x="40" y="940" width="250" height="179" rx="7" fill="#EEF1F4" stroke="#475569" stroke-width="1.3"/>
+<path d="M 40 974 L 40 947 Q 40 940 47 940 L 283 940 Q 290 940 290 947 L 290 974 Z" fill="#475569"/>
+<text x="51" y="962" class="tname">user_settings</text>
+<text x="51" y="987" class="tsub" fill="#334155">single row, all tunables</text>
+<text x="51" y="1007" class="fld" font-weight="600">id</text>
+<text x="280" y="1007" class="badge" fill="#334155" text-anchor="end">PK</text>
+<text x="51" y="1024" class="fld" font-weight="400">timezone</text>
+<text x="51" y="1041" class="fld" font-weight="400">day_rollover_hour</text>
+<text x="280" y="1041" class="note" text-anchor="end">default 04:00</text>
+<text x="51" y="1058" class="fld" font-weight="400">materiality_kcal</text>
+<text x="280" y="1058" class="note" text-anchor="end">gate threshold</text>
+<text x="51" y="1075" class="fld" font-weight="400">materiality_pct</text>
+<text x="51" y="1092" class="fld" font-weight="400">atwater_tol_kcal</text>
+<text x="280" y="1092" class="note" text-anchor="end">macro check slack</text>
+<text x="51" y="1109" class="fld" font-weight="400">atwater_tol_pct</text>
+<rect x="750" y="770" width="250" height="230" rx="7" fill="#FCEEE6" stroke="#9A3412" stroke-width="1.3"/>
+<path d="M 750 804 L 750 777 Q 750 770 757 770 L 993 770 Q 1000 770 1000 777 L 1000 804 Z" fill="#9A3412"/>
+<text x="761" y="792" class="tname">intake_events</text>
+<text x="761" y="817" class="tsub" fill="#7C2D12">write-once. blind to abandoned drafts</text>
+<text x="761" y="837" class="fld" font-weight="600">id</text>
+<text x="990" y="837" class="badge" fill="#7C2D12" text-anchor="end">PK</text>
+<text x="761" y="854" class="fld" font-weight="400">staging_id</text>
+<text x="761" y="871" class="fld" font-weight="400">occurred_at</text>
+<text x="761" y="888" class="fld" font-weight="400">outcome</text>
+<text x="990" y="888" class="note" text-anchor="end">committed/rejected</text>
+<text x="761" y="905" class="fld" font-weight="400">log_id</text>
+<text x="990" y="905" class="badge" fill="#7C2D12" text-anchor="end">FK</text>
+<text x="761" y="922" class="fld" font-weight="400">meal_id</text>
+<text x="990" y="922" class="badge" fill="#7C2D12" text-anchor="end">FK</text>
+<text x="761" y="939" class="fld" font-weight="400">attached</text>
+<text x="990" y="939" class="note" text-anchor="end">added to existing meal</text>
+<text x="761" y="956" class="fld" font-weight="400">gaps</text>
+<text x="990" y="956" class="note" text-anchor="end">which kinds fired</text>
+<text x="761" y="973" class="fld" font-weight="400">unconsumed_spans</text>
+<text x="761" y="990" class="fld" font-weight="400">reject_reason</text>
+<rect x="40" y="180" width="290" height="349" rx="7" fill="#FFFBF3" stroke="#B45309" stroke-width="1.6" stroke-dasharray="7 5"/>
+<text x="53" y="203" class="tname" style="fill:#7C3A06">in-context draft</text>
+<text x="53" y="227" class="tsub" fill="#7C3A06">lives in the LLM context window &#8212; NOT stored</text>
+<text x="53" y="247" class="fld" style="fill:#3F3F3A" font-weight="400">raw_utterance</text>
+<text x="53" y="264" class="fld" style="fill:#3F3F3A" font-weight="400">eaten_at</text>
+<text x="53" y="281" class="fld" style="fill:#9A3412" font-weight="400">meal { meal_id … }</text>
+<text x="319" y="281" class="note" text-anchor="end" style="fill:#9A3412">non-null = ATTACH</text>
+<text x="53" y="298" class="fld" style="fill:#3F3F3A" font-weight="400">     { name, meal_type_key }</text>
+<text x="53" y="315" class="fld" style="fill:#1C1C1A" font-weight="700">items[]</text>
+<text x="53" y="332" class="fld" style="fill:#0F766E" font-weight="400">  name</text>
+<text x="319" y="332" class="note" text-anchor="end" style="fill:#0F766E">decision</text>
+<text x="53" y="349" class="fld" style="fill:#3730A3" font-weight="400">  raw_text + span</text>
+<text x="319" y="349" class="note" text-anchor="end" style="fill:#3730A3">anchor</text>
+<text x="53" y="366" class="fld" style="fill:#0F766E" font-weight="400">  portion_fraction {num,den}</text>
+<text x="319" y="366" class="note" text-anchor="end" style="fill:#0F766E">decision</text>
+<text x="53" y="383" class="fld" style="fill:#1C1C1A" font-weight="700">  ingredients[]</text>
+<text x="53" y="400" class="fld" style="fill:#0F766E" font-weight="400">    food_name</text>
+<text x="319" y="400" class="note" text-anchor="end" style="fill:#0F766E">decision</text>
+<text x="53" y="417" class="fld" style="fill:#0F766E" font-weight="400">    grams</text>
+<text x="319" y="417" class="note" text-anchor="end" style="fill:#0F766E">decision</text>
+<text x="53" y="434" class="fld" style="fill:#0F766E" font-weight="400">    kcal_per_100g</text>
+<text x="319" y="434" class="note" text-anchor="end" style="fill:#0F766E">PER 100g, never absolute</text>
+<text x="53" y="451" class="fld" style="fill:#0F766E" font-weight="400">    protein / carbs / fat</text>
+<text x="319" y="451" class="note" text-anchor="end" style="fill:#0F766E">PER 100g, never absolute</text>
+<text x="53" y="468" class="fld" style="fill:#8A8A82" font-weight="400">    quantity + unit_label</text>
+<text x="319" y="468" class="note" text-anchor="end" style="fill:#8A8A82">what the user said</text>
+<text x="53" y="485" class="fld" style="fill:#B91C1C" font-weight="700">  server does every sum</text>
+<text x="319" y="485" class="note" text-anchor="end" style="fill:#B91C1C">no model arithmetic</text>
+<text x="53" y="502" class="fld" style="fill:#3F3F3A" font-weight="400">gaps[] {kind, item_ordinal}</text>
+<text x="53" y="519" class="fld" style="fill:#3F3F3A" font-weight="400">unconsumed_spans[]</text>
+<g transform="translate(760, 34)">
+<rect x="0" y="0" width="11" height="11" rx="2" fill="#0F766E"/><text x="17" y="10" class="lg">the log (append-only)</text><rect x="158" y="0" width="11" height="11" rx="2" fill="#475569"/><text x="175" y="10" class="lg">config</text><rect x="316" y="0" width="11" height="11" rx="2" fill="#9A3412"/><text x="333" y="10" class="lg">telemetry</text><rect x="474" y="0" width="11" height="11" rx="2" fill="#B45309"/><text x="491" y="10" class="lg">not persisted</text>
+</g>
+<text x="40" y="1158" class="lg" fill="#6B6B66">Items must be span-anchored; ingredients need not be, which is what the composite gap guards. Atwater (4P+4C+9F) is the only automated check on the numbers.</text>
+</svg>
