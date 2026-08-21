@@ -92,3 +92,32 @@ Once Part A (and optionally Part B) is done, give me:
 That's enough to write `token_verifier` in `server/db.py`/`server/server.py`
 and switch the transport to `streamable-http` (Phase 4), and to wire the
 Next.js site's Auth0 SDK config (Phase 3) once we get there.
+
+---
+
+## Part C — Wiring the website's Auth0 Application (Phase 3)
+
+The `web/` app (built) needs two more values from the **MacroMCP Website**
+Auth0 Application (the one that started as an auto-created Machine-to-
+Machine "Test Application" and got switched to Regular Web Application in
+Settings) - not the Google Cloud OAuth client, and not the API from Part A.
+
+1. Open that Application in Auth0 → **Settings**
+2. Copy **Client ID** and **Client Secret**, add them to `web/.env.local`:
+   ```
+   AUTH0_CLIENT_ID=...
+   AUTH0_CLIENT_SECRET=...
+   ```
+3. Still in that Application's Settings, set:
+   - **Allowed Callback URLs**: `http://localhost:3000/auth/callback`
+   - **Allowed Logout URLs**: `http://localhost:3000`
+
+   (Auth0 rejects the login/logout redirect if the URL isn't explicitly
+   whitelisted here - this is a different setting from the Google Cloud
+   redirect URI from Part B, which points at Auth0 itself, not at our app.)
+4. Save, then `cd web && npm run dev` and visit `http://localhost:3000` -
+   "Log in" should now complete a real Google login and land back on the
+   page showing your generated username.
+
+Add the real production URL to both Allowed lists later, once Vercel
+deployment (still open - see chat) gives you one.

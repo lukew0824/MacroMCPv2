@@ -304,4 +304,8 @@ function-calling client in front of it to be useful end to end.
 - `docs/erd/` — schema diagram (still shows the single-user shape; not yet regenerated for multi-user).
 - `server/` — the MCP server implementing the tool contract (`db.py` Postgres access,
   `models.py` payload validation, `tools.py` business logic, `server.py` tool registration).
+- `web/` — the Next.js site: Auth0 login (Google, for now), and just-in-time
+  provisioning that links a verified Auth0 identity to a `users` row
+  (`src/lib/db.ts`) the first time someone logs in. `npm install && npm run dev`
+  after filling in `.env.local` per `docs/auth-setup.md` Part C.
 - prior single-user design history: `git log db/schema.sql`.
