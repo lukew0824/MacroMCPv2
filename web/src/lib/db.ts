@@ -3,7 +3,17 @@ import postgres from "postgres";
 // Same database as server/ (the Python MCP resource server) - this is the
 // JIT-provisioning side of Phase 2's users.auth0_sub column: on first
 // login, create the linked row here; token_verifier (Phase 4) reads it.
-const sql = postgres(process.env.DATABASE_URL ?? "postgresql:///macromcp");
+//
+// max: 1 / idle_timeout: this is meant to run on Vercel (serverless
+// functions), where many concurrent function instances can each hold their
+// own connection - a per-instance pool bigger than 1 multiplies that, and
+// Postgres's own max_connections is a shared, finite resource across all of
+// them. Closing idle connections quickly keeps a cold function from holding
+// one open for no reason.
+const sql = postgres(process.env.DATABASE_URL ?? "postgresql:///macromcp", {
+  max: 1,
+  idle_timeout: 20,
+});
 
 export interface AppUser {
   id: number;
@@ -52,20 +62,29 @@ export async function getOrCreateUser(profile: Auth0Profile): Promise<AppUser> {
 
   // Try the bare slug first, then _2, _3, ... - collisions should be rare at
   // this scale, so a short bounded loop is simpler than a single clever query.
+  //
+  // ON CONFLICT DO NOTHING with NO target (not "ON CONFLICT (username)"):
+  // users has two unique columns, username AND auth0_sub. A targeted clause
+  // only absorbs a conflict on the column(s) named - a conflict on the
+  // *other* one would still raise a unique_violation and crash this instead
+  // of falling through to the race-recovery lookup below. Naming no target
+  // absorbs a conflict on either constraint the same way.
   for (let attempt = 0; attempt < 20; attempt++) {
     const candidate = attempt === 0 ? base : `${base}_${attempt + 1}`.slice(0, 32);
     const inserted = await sql<AppUser[]>`
       INSERT INTO users (username, display_name, auth0_sub)
       VALUES (${candidate}, ${displayName}, ${profile.sub})
-      ON CONFLICT (username) DO NOTHING
+      ON CONFLICT DO NOTHING
       RETURNING id, username
     `;
     if (inserted.length > 0) {
       return inserted[0];
     }
-    // username taken - loop and try the next suffix. If auth0_sub itself
-    // raced onto another row in the meantime (near-impossible, but real
-    // concurrent double-clicks exist), pick that up instead of looping forever.
+    // No row came back - either the username was taken (loop and try the
+    // next suffix) or auth0_sub itself raced onto another row in the
+    // meantime (a real concurrent double-click, not just theoretical).
+    // Check for the latter before looping, so a genuine race resolves to
+    // the winning row instead of retrying pointlessly.
     const raced = await sql<AppUser[]>`
       SELECT id, username FROM users WHERE auth0_sub = ${profile.sub}
     `;
