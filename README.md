@@ -259,6 +259,41 @@ is still recorded as `estimated`. The system never launders one into the other.
 FastAPI + Postgres 16, small multi-user, self-hosted. Exposed over MCP so any
 MCP client can be the front end.
 
+## Running it
+
+The MCP server (`server/`) is a thin adapter: it registers each tool from
+`docs/intake-agent.md`'s contract, resolves this process's user_id once at
+startup, and calls the matching SQL function or view for every call. It has
+no logic of its own beyond that — the database is still where every
+invariant is actually enforced.
+
+One server process = one user (see `server/config.py`). This is the answer
+to the "how does a call resolve to a user_id" question from `docs/
+design-notes.md`: for MCP specifically, each person runs their own server
+instance, the same way Claude Desktop/Code launch one subprocess per
+configured tool.
+
+```sh
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+
+createdb macromcp                       # first time only
+psql -d macromcp -f db/schema.sql       # first time only
+psql -d macromcp -c "INSERT INTO users (username, display_name) VALUES ('luke','Luke');"
+
+cp .env.example .env   # edit MACROMCP_USERNAME to match the user you just created
+export $(cat .env | xargs)
+python -m server.server
+```
+
+Point an MCP client (Claude Desktop, Claude Code, an OpenAI Realtime
+function-call bridge) at `python -m server.server` with that environment,
+and every tool in `docs/intake-agent.md` is live.
+
+The GPT Realtime mini voice front end described in `docs/intake-agent.md`
+is not wired up yet — this server just needs *some* MCP-speaking or
+function-calling client in front of it to be useful end to end.
+
 ## Files
 
 - `db/schema.sql` — full DDL, multi-user commit gate, rollup views. Loads clean on PG16.
@@ -267,4 +302,6 @@ MCP client can be the front end.
 - `docs/intake-agent.md` — the system prompt and tool/function-calling contract for the
   conversational front end (GPT Realtime mini), matched field-for-field to `fn_commit_log`'s payload.
 - `docs/erd/` — schema diagram (still shows the single-user shape; not yet regenerated for multi-user).
+- `server/` — the MCP server implementing the tool contract (`db.py` Postgres access,
+  `models.py` payload validation, `tools.py` business logic, `server.py` tool registration).
 - prior single-user design history: `git log db/schema.sql`.
