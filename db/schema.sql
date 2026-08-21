@@ -68,6 +68,16 @@ CREATE TABLE users (
     id           bigserial PRIMARY KEY,
     username     text NOT NULL UNIQUE CHECK (username ~ '^[a-z0-9_]{2,32}$'),
     display_name text NOT NULL,
+    -- The verified `sub` claim from an Auth0-issued token (e.g.
+    -- "google-oauth2|1234567890") - NOT a credential itself, just a pointer.
+    -- The actual verification (signature, issuer, audience) happens against
+    -- Auth0's JWKS at request time; this column only has to answer "which
+    -- users row does this already-verified identity belong to." Nullable:
+    -- not every row is provisioned via Auth0 login (e.g. rows created
+    -- directly for local/stdio use), and a plain UNIQUE constraint already
+    -- allows any number of NULLs while still forbidding two users from
+    -- sharing one Auth0 identity.
+    auth0_sub    text UNIQUE,
     created_at   timestamptz NOT NULL DEFAULT now()
 );
 

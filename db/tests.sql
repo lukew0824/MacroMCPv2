@@ -1,6 +1,6 @@
 -- MacroMCP tests. Run once against a freshly loaded schema.sql.
--- 13 invariants carried over from the single-user version, plus T14-T18 for
--- the thing multi-user actually adds: cross-user isolation.
+-- 13 invariants carried over from the single-user version, T14-T18 for
+-- cross-user isolation, T19-T20 for Auth0 identity linking.
 \set ON_ERROR_STOP off
 \pset format aligned
 
@@ -201,3 +201,17 @@ SELECT fn_commit_log(:sam, fn_new_staging_id(), jsonb_build_object(
 \echo '\n=== T18: fn_meal_readback returns NULL, not another user''s data, on a cross-user lookup ==='
 SELECT fn_meal_readback(:sam, :lukes_dinner_meal) IS NULL AS correctly_hidden;
 \echo '(expected: t)'
+
+-- ============================ AUTH0 LINKING ===================================
+
+\echo '\n=== T19: auth0_sub links an existing user, and is unique ==='
+UPDATE users SET auth0_sub = 'google-oauth2|1111111111' WHERE id = :luke;
+SELECT username FROM users WHERE auth0_sub = 'google-oauth2|1111111111';
+\echo '(expected: luke - confirms the lookup token_verifier will actually use)'
+UPDATE users SET auth0_sub = 'google-oauth2|1111111111' WHERE id = :sam;
+\echo '(expected: ERROR - unique_violation, sam cannot claim luke''s already-linked identity)'
+
+\echo '\n=== T20: two users with NO Auth0 identity yet do not collide with each other ==='
+INSERT INTO users (username, display_name) VALUES ('unlinked_a','A'), ('unlinked_b','B');
+SELECT count(*) AS both_created_fine FROM users WHERE username IN ('unlinked_a','unlinked_b');
+\echo '(expected: 2 - NULL auth0_sub on both is not a uniqueness conflict)'
