@@ -33,7 +33,15 @@ atexit.register(_pool.close)
 # user, per "When commit_log rejects the payload" in docs/intake-agent.md.
 # Using the SDK's own ToolError means the MCP layer surfaces it as a
 # structured tool error to the caller instead of crashing the connection.
-__all__ = ["ToolError", "resolve_user_id", "call_scalar", "call_rows", "call_row", "as_jsonb"]
+__all__ = [
+    "ToolError",
+    "resolve_user_id",
+    "resolve_user_id_by_auth0_sub",
+    "call_scalar",
+    "call_rows",
+    "call_row",
+    "as_jsonb",
+]
 
 
 def resolve_user_id(username: str) -> int:
@@ -45,6 +53,28 @@ def resolve_user_id(username: str) -> int:
         raise ToolError(
             f"no such user {username!r} - create it first with: "
             f"INSERT INTO users (username, display_name) VALUES ('{username}', '...')"
+        )
+    return row["id"]
+
+
+def resolve_user_id_by_auth0_sub(auth0_sub: str) -> int:
+    """
+    For streamable-http: auth0_sub comes from an ALREADY-VERIFIED token
+    (server/auth.py checked its signature, issuer, and audience before this
+    is ever called) - this function only maps that verified identity to a
+    users.id, the same trust boundary fn_commit_log already assumes for
+    p_user_id. A miss here means the website's JIT provisioning
+    (web/src/lib/db.ts) hasn't run for this identity yet, not that the
+    token itself is bad.
+    """
+    with _pool.connection() as conn:
+        row = conn.execute(
+            "SELECT id FROM users WHERE auth0_sub = %s", (auth0_sub,)
+        ).fetchone()
+    if row is None:
+        raise ToolError(
+            "no MacroMCP account linked to this identity yet - log in at "
+            "the website first so it can be provisioned"
         )
     return row["id"]
 

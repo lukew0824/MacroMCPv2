@@ -4,15 +4,44 @@ This module wires the MCP SDK to that logic and does nothing else - see
 docs/intake-agent.md for the tool contract this implements, and
 docs/design-notes.md for why the underlying database is shaped this way.
 
-Run with: MACROMCP_USERNAME=luke python -m server.server
+Two ways to run it, matching server/config.py's two identity modes:
+
+  MACROMCP_USERNAME=luke python -m server.server
+      stdio, one local process = one user. No auth - the process itself
+      is the identity, same as always. What Claude Desktop/Code use today.
+
+  MACROMCP_TRANSPORT=streamable-http AUTH0_DOMAIN=... AUTH0_AUDIENCE=... \\
+      python -m server.server
+      Network-facing. Every request must carry a valid Auth0-issued bearer
+      token (server/auth.py); identity is resolved per request from it,
+      not from an env var - see docs/auth-setup.md.
 """
 
 from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from server import tools
+from server import config, tools
 from server.models import CommitPayload
+
+_auth_kwargs: dict = {}
+if config.TRANSPORT == "streamable-http":
+    from mcp.server.auth.settings import AuthSettings
+
+    from server.auth import Auth0TokenVerifier
+
+    _auth_kwargs = {
+        "token_verifier": Auth0TokenVerifier(
+            domain=config.AUTH0_DOMAIN, audience=config.AUTH0_AUDIENCE
+        ),
+        # Resource-server-only mode: Auth0 is the issuer, we just verify.
+        # No auth_server_provider/client_registration_options here - DCR
+        # happens directly against Auth0, this server is never in that path.
+        "auth": AuthSettings(
+            issuer_url=f"https://{config.AUTH0_DOMAIN}/",
+            resource_server_url=config.AUTH0_AUDIENCE,
+        ),
+    }
 
 app = MCPServer(
     name="macromcp",
@@ -24,6 +53,7 @@ app = MCPServer(
         "dead end - read the message and either fix the payload or resubmit "
         "with the matching confirm flag after checking with the user."
     ),
+    **_auth_kwargs,
 )
 
 
@@ -105,7 +135,7 @@ def get_data_quality(start_date: str, end_date: str | None = None) -> list[dict]
 
 
 def main() -> None:
-    app.run()
+    app.run(transport=config.TRANSPORT)
 
 
 if __name__ == "__main__":

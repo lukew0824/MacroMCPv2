@@ -4,9 +4,14 @@ version = "0.1.0"
 description = "MCP server exposing MacroMCP's intake/commit/query tools over Postgres"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp[cli]>=1.2.0",
+    # >=2.0.0, not just any 1.x: this code uses mcp.server.mcpserver.MCPServer
+    # and mcp.server.auth.*, which don't exist under the older API surface.
+    "mcp[cli]>=2.0.0",
     "psycopg[binary,pool]>=3.2",
     "pydantic>=2.0",
+    # Imported directly by server/auth.py - was only a transitive dependency
+    # of mcp before, which is fragile (mcp could drop it and silently break us).
+    "pyjwt>=2.8",
 ]
 
 [build-system]

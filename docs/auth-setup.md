@@ -121,3 +121,38 @@ Settings) - not the Google Cloud OAuth client, and not the API from Part A.
 
 Add the real production URL to both Allowed lists later, once Vercel
 deployment (still open - see chat) gives you one.
+
+---
+
+## Part D — Running server/ as a real network service (Phase 4, built)
+
+`server/` now supports two modes (`server/config.py`):
+
+- `MACROMCP_USERNAME=luke python -m server.server` - stdio, unchanged from
+  before, no auth. Still what Claude Desktop/Code use locally today.
+- `MACROMCP_TRANSPORT=streamable-http AUTH0_DOMAIN=... AUTH0_AUDIENCE=...
+  python -m server.server` - network-facing. Every request needs a valid
+  Auth0-issued bearer token; identity is resolved per request from it
+  (`server/auth.py` verifies against Auth0's JWKS, `server/tools.py` looks
+  up `users.auth0_sub`), not from an env var.
+
+Verified locally: server starts on `:8000`, `/.well-known/oauth-protected-
+resource` serves correctly, unauthenticated and garbage-token requests both
+get a proper `401` with a `WWW-Authenticate` header. Not yet verified: an
+actual valid token succeeding - that needs a real browser login, same
+caveat as Part C.
+
+**Correction to something said earlier in chat, not just here:** it was
+said the `AUTH0_AUDIENCE` placeholder (`https://api.macromcp.example/`)
+could stay that way forever, since it's "just an opaque label." That's true
+for the JWT audience check itself (plain string equality), but it turns out
+**not** true for the whole picture - this same value becomes the literal
+`resource_metadata` URL advertised in the `WWW-Authenticate` header
+(confirmed by testing: it pointed at `https://api.macromcp.example/...`,
+which resolves nowhere). A real MCP client doing automatic discovery
+follows that URL to find the authorization server. So: the `.example`
+placeholder is fine for now and for local testing, but **once this server
+is actually deployed and meant to be reachable by Claude/ChatGPT for real,
+`AUTH0_AUDIENCE` needs to become the real public URL** - not a cosmetic
+rename, a functional requirement for client discovery to work at all.
+That's a Phase 5 (deployment) task, not something to fix now.

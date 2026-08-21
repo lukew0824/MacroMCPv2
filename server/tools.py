@@ -1,8 +1,8 @@
 """
-Business logic behind every MCP tool: resolves this server's user_id
-(cached, resolved once), calls the matching SQL function or view, and
-returns JSON-serializable results. server.py wires these functions to MCP
-tool decorators and does no logic of its own.
+Business logic behind every MCP tool: resolves the calling user_id, calls
+the matching SQL function or view, and returns JSON-serializable results.
+server.py wires these functions to MCP tool decorators and does no logic
+of its own.
 
 find_prior_meal and search_log are NOT backed by dedicated SQL functions -
 db/schema.sql only ships fn_* functions for the commit path and read-back.
@@ -17,14 +17,38 @@ import re
 from datetime import date
 from functools import lru_cache
 
+from mcp.server.auth.middleware.auth_context import get_access_token
+
 from server import config, db
 from server.db import ToolError
 from server.models import CommitPayload
 
 
 @lru_cache(maxsize=1)
-def _user_id() -> int:
+def _stdio_user_id() -> int:
+    """
+    stdio only: one process = one user, so this is safe to resolve once
+    and cache for the process's whole lifetime - the same trust model as
+    always (MACROMCP_USERNAME picks who this instance acts as).
+    """
     return db.resolve_user_id(config.USERNAME)
+
+
+def _user_id() -> int:
+    """
+    streamable-http: resolved FRESH on every call from the current
+    request's verified token (server/auth.py already checked its
+    signature/issuer/audience before this ever runs) - caching this across
+    requests would leak one user's identity into another's calls, which is
+    exactly the cross-user bug class db/tests.sql's T14-T18 exist to catch
+    at the database layer. Don't memoize this branch.
+    """
+    if config.TRANSPORT == "streamable-http":
+        token = get_access_token()
+        if token is None or not token.subject:
+            raise ToolError("no authenticated identity on this request")
+        return db.resolve_user_id_by_auth0_sub(token.subject)
+    return _stdio_user_id()
 
 
 def _slugify(food_name: str) -> str:
