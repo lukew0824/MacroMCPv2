@@ -51,7 +51,18 @@ app = MCPServer(
         "multiplication. Call new_staging_id immediately before commit_log. "
         "Every fn_commit_log rejection is a specific, fixable reason, not a "
         "dead end - read the message and either fix the payload or resubmit "
-        "with the matching confirm flag after checking with the user."
+        "with the matching confirm flag after checking with the user. "
+        "Before calling commit_log: if the user hedged on a portion size or "
+        "macro value ('hard to say', 'not sure exactly'), or you had to "
+        "guess at something that would change the total by more than about "
+        "25 kcal / 10% (unstated cooking fat, a bundled side, an ambiguous "
+        "unit like 'a cup'), ask them rather than silently defaulting - a "
+        "gap payload can record is_material: true and status: 'defaulted' "
+        "for something you never actually asked about, but doing that on a "
+        "material gap defeats the point of tracking it. Then state the "
+        "resolved items and total back to the user and wait for their "
+        "go-ahead before committing - don't treat the first mention of a "
+        "meal as confirmation to log it."
     ),
     **_auth_kwargs,
 )
@@ -82,7 +93,7 @@ def commit_log(
     confirm_duplicate: bool = False,
     confirm_atwater: bool = False,
 ) -> dict:
-    """Commit a fully-resolved, user-confirmed food log entry. Rejected if items are unanchored, ingredients are missing macros, a composite item's decomposition wasn't confirmed, or the stated macros are internally incoherent - read the error and fix the specific problem, don't retry blindly."""
+    """Commit a fully-resolved, user-confirmed food log entry. Only call this after the user has said yes to a recap of the items and total - not on the first mention of a meal - and after asking about any material gap (unclear portion, uncertain macro, likely unmentioned addition) rather than silently defaulting through it. Rejected if items are unanchored, ingredients are missing macros, a composite item's decomposition wasn't confirmed, or the stated macros are internally incoherent - read the error and fix the specific problem, don't retry blindly."""
     return tools.commit_log(staging_id, payload, confirm_duplicate, confirm_atwater)
 
 
