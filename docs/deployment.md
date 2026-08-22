@@ -78,33 +78,48 @@ Needs a host that stays running (not classic serverless) - streamable-http
 holds open server-to-client streams. Railway chosen; could also host the
 database here later if consolidating off Neon ever makes sense.
 
-- `railway.toml` at repo root defines **only** `[deploy] startCommand =
-  "python -m server.server"` - no `[build]` section. Railway's current
-  builder is **Railpack** (not classic Nixpacks - a different, newer
-  system, don't assume Nixpacks-specific advice found online applies here
-  without checking). Two wrong turns taken getting to this, worth knowing
-  about since both looked like they should have worked:
-  1. First attempt had no `railway.toml` at all beyond a plain
-     `buildCommand = "pip install -e ."` - deployed but crashed at runtime
-     with `ModuleNotFoundError: No module named 'mcp'`.
-  2. Second attempt "fixed" it by explicitly creating/activating a venv in
-     both build and start commands (`python -m venv /opt/venv && ...`) -
-     based on real, correct advice for classic Nixpacks. Still crashed the
-     same way. Root cause visible in the Build Logs: Railpack runs build
-     and deploy as genuinely separate container stages, and only carries
-     forward what *it* knows to copy between them - a venv created by a
-     custom command isn't on that list, so `/opt/venv` existed during
-     build and was simply gone by deploy (`/opt/venv/bin/activate: No such
-     file or directory`).
+- **Root cause, confirmed against Railpack's own docs (railpack.com/languages/python)
+  and its actual build logs, not guessed:** Railway's current builder is
+  **Railpack** (not classic Nixpacks - a different, newer system; don't
+  assume Nixpacks advice found online applies here without checking - it
+  cost two wrong fixes below to learn that). Railpack's `pip` package
+  manager specifically requires a `requirements.txt` file to be detected at
+  all - `pyproject.toml` alone only auto-triggers dependency installation
+  for poetry/pdm/uv, and only when their respective lock file
+  (`poetry.lock`/`pdm.lock`/`uv.lock`) is *also* present. This project has
+  none of those (hatchling backend, no lock file) - so Railpack correctly
+  detected "this is Python" but had no recognized signal for *how* to
+  install anything, and silently skipped that step entirely. Confirmed via
+  Build Logs: with no custom buildCommand, the log shows Python itself and
+  system apt packages being installed, then nothing else - no `pip`
+  anywhere, no error either, just silence, straight through to `python -m
+  server.server` crashing at runtime with `ModuleNotFoundError: No module
+  named 'mcp'`.
 
-  **The actual fix, confirmed against Railway's own docs:** a custom
-  `buildCommand` runs *in addition to* Railpack's automatic language/
-  package detection and install, not instead of it - "Detected Python" +
-  installing our `pyproject.toml` deps was already happening correctly and
-  persisting to the runtime stage on its own. The custom buildCommand was
-  never necessary and was actively harmful (a redundant, disconnected
-  venv). Removing `[build]` entirely and keeping only the startCommand is
-  correct - let Railpack's own install step do its job.
+  **Fix:** added `requirements.txt` at repo root, mirroring
+  `pyproject.toml`'s `[project.dependencies]` exactly (kept manually in
+  sync - deploy-only, local dev still uses `pip install -e .` against
+  `pyproject.toml`). This is sufficient on its own - `server`'s own code
+  doesn't need to be `pip install`-ed as a package at all, since running
+  `python -m server.server` from the repo root (where everything gets
+  copied to `/app`) resolves it via Python's normal "current directory is
+  on `sys.path`" behavior. `railway.toml` needs nothing beyond
+  `[deploy] startCommand = "python -m server.server"` - no `[build]`
+  section required once `requirements.txt` exists.
+
+  **Two wrong fixes tried first, both looked plausible, neither was the
+  real cause - worth knowing so they don't get re-tried:**
+  1. A plain `buildCommand = "pip install -e ."` (no venv) - deployed but
+     crashed the same way. At the time this looked like a build/runtime
+     stage-persistence problem.
+  2. Explicitly creating/activating a venv in both build and start
+     commands (`python -m venv /opt/venv && ...`) - real, correct advice
+     for *classic Nixpacks*, which does have genuinely separate stages
+     that a custom command's venv doesn't survive. Still crashed
+     identically on Railpack. In hindsight, both attempts were solving a
+     stage-persistence problem that was never the actual issue - the
+     install was never running in the first place, so there was nothing
+     to persist.
 - **Root Directory: leave as `/` (the default), do NOT set it to `server`**
   - this is the opposite of what Vercel needed. `pyproject.toml` lives at
     the repo root, not inside `server/`; scoping Root Directory to `server`

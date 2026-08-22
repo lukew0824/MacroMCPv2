@@ -1,0 +1,10 @@
+# Mirrors pyproject.toml's [project.dependencies] exactly - this file exists
+# specifically for Railway/Railpack's Python package-manager detection,
+# which requires requirements.txt to recognize "pip" as the package manager
+# (pyproject.toml alone isn't enough unless it's poetry/pdm/uv with a lock
+# file - see docs/deployment.md). Local dev still uses `pip install -e .`
+# against pyproject.toml; this is deploy-only. Keep these two in sync.
+mcp[cli]>=2.0.0
+psycopg[binary,pool]>=3.2
+pydantic>=2.0
+pyjwt>=2.8
