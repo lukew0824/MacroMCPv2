@@ -46,9 +46,10 @@ passes against Neon directly. Also verified the JIT-provisioning path
 confirmed correct. Test rows cleaned up after both verification passes -
 this database should be empty and ready for real use.
 
-## Vercel (website)
+## Vercel (website) - done, 2026-08-21
 
-Not done yet. When setting up the project:
+Live at `https://macro-mcp-v2.vercel.app`. Setup, for reference / redoing
+elsewhere:
 
 - Root Directory: `web` (this is a monorepo - `db/`, `docs/`, `server/`
   live alongside it, Vercel only builds what's under Root Directory)
@@ -58,17 +59,46 @@ Not done yet. When setting up the project:
   - `DATABASE_URL` - Neon **pooler** host, not the direct one used for
     local dev
   - `APP_BASE_URL` - the real assigned Vercel URL, not `localhost:3000`
-- After the first deploy, add that Vercel URL to the Auth0 Application's
-  **Allowed Callback URLs** (`https://<vercel-url>/auth/callback`) and
-  **Allowed Logout URLs** (`https://<vercel-url>`) - alongside the
-  `localhost:3000` ones already there, not replacing them, since local dev
-  should keep working too.
+    (added after the first deploy, once Vercel actually assigned one)
+- Added the Vercel URL to the Auth0 Application's **Allowed Callback URLs**
+  (`.../auth/callback`) and **Allowed Logout URLs** - alongside the
+  `localhost:3000` ones, not replacing them, so local dev keeps working too.
 
-## Resource server (`server/`)
+Full real end-to-end login (a human clicking through Google → Auth0 →
+callback → JIT provisioning) confirmed working against this deployment -
+see docs/auth-setup.md Part C's bottom note and project memory for the two
+real Auth0 config bugs that had to be fixed to get there (Grant Types,
+Default Audience) - both are exactly the kind of thing that'll bite again
+on the next Auth0 Application you create by this same M2M-then-switched
+path, or the next time Default Audience gets touched.
 
-Not started. Needs a host that stays running (Fly.io/Render/Railway/a
-small box) - streamable-http holds open server-to-client streams, which
-doesn't fit classic serverless. See docs/auth-setup.md Part D for the
-`AUTH0_AUDIENCE` correction: it needs to become the server's real public
-URL once this is live, not stay the `.example` placeholder, since that
-value is also what's advertised to OAuth clients for discovery.
+## Resource server (`server/`) - Railway, in progress
+
+Needs a host that stays running (not classic serverless) - streamable-http
+holds open server-to-client streams. Railway chosen; could also host the
+database here later if consolidating off Neon ever makes sense.
+
+- `railway.toml` at repo root defines the build (`pip install -e .`) and
+  start (`python -m server.server`) commands explicitly, rather than
+  trusting Nixpacks' auto-detection to guess right in a monorepo that also
+  has a Next.js app in `web/`.
+- **Root Directory: leave as `/` (the default), do NOT set it to `server`**
+  - this is the opposite of what Vercel needed. `pyproject.toml` lives at
+    the repo root, not inside `server/`; scoping Root Directory to `server`
+    would hide it from Railway entirely and break the build.
+- `server/config.py`/`server/server.py` bind to `0.0.0.0` and read the
+  platform-injected `PORT` env var automatically when
+  `MACROMCP_TRANSPORT=streamable-http` - verified locally with a simulated
+  `PORT` before ever touching Railway, both the metadata endpoint and a
+  real bind check.
+- Env vars needed on the Railway service: `MACROMCP_TRANSPORT=streamable-http`,
+  `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, `MACROMCP_DATABASE_URL` - the last one
+  should be Neon's **direct** host (not the pooler `web/` uses), since this
+  is one persistent process holding its own small connection pool, not many
+  short-lived serverless ones.
+- `AUTH0_AUDIENCE` needs to become the real Railway-assigned URL once
+  deployed (see docs/auth-setup.md Part D) - the `.example` placeholder
+  won't let real MCP clients discover this server.
+- Still open: the Default Audience/DCR-scoping problem (docs/auth-setup.md
+  Part A's note) needs solving before this is actually usable by Claude,
+  not just running.

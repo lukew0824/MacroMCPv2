@@ -1,0 +1,5 @@
+[build]
+buildCommand = "pip install -e ."
+
+[deploy]
+startCommand = "python -m server.server"

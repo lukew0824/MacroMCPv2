@@ -135,7 +135,12 @@ def get_data_quality(start_date: str, end_date: str | None = None) -> list[dict]
 
 
 def main() -> None:
-    app.run(transport=config.TRANSPORT)
+    if config.TRANSPORT == "streamable-http":
+        # host/port only mean anything for the network transport - stdio
+        # has no socket to bind.
+        app.run(transport=config.TRANSPORT, host=config.HOST, port=config.PORT)
+    else:
+        app.run(transport=config.TRANSPORT)
 
 
 if __name__ == "__main__":

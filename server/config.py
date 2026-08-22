@@ -56,3 +56,12 @@ else:  # streamable-http
             "from a verified token, not a fixed process-wide user, so "
             "there's no other way to check one."
         )
+
+# Only meaningful for streamable-http. 0.0.0.0 (not 127.0.0.1) so the
+# process accepts connections from outside the container, not just itself -
+# required on any real host (Railway, Fly, etc.), harmless locally. PORT
+# follows the platform convention Railway (and most PaaS) inject the
+# assigned port through - falls back to 8000 for local testing where
+# nothing sets it.
+HOST = "0.0.0.0"
+PORT = int(os.environ.get("PORT", 8000))
