@@ -78,10 +78,20 @@ Needs a host that stays running (not classic serverless) - streamable-http
 holds open server-to-client streams. Railway chosen; could also host the
 database here later if consolidating off Neon ever makes sense.
 
-- `railway.toml` at repo root defines the build (`pip install -e .`) and
-  start (`python -m server.server`) commands explicitly, rather than
-  trusting Nixpacks' auto-detection to guess right in a monorepo that also
-  has a Next.js app in `web/`.
+- `railway.toml` at repo root defines the build and start commands
+  explicitly, rather than trusting Nixpacks' auto-detection to guess right
+  in a monorepo that also has a Next.js app in `web/`.
+  **Real bug hit doing this, not just a style choice:** a plain
+  `buildCommand = "pip install -e ."` deployed successfully but crashed at
+  runtime with `ModuleNotFoundError: No module named 'mcp'` - Nixpacks
+  auto-creates and activates a Python virtualenv at `/opt/venv` for
+  auto-detected install steps, but a *custom* buildCommand doesn't get
+  that activation for free, and neither does a custom startCommand
+  separately. Fixed by explicitly creating/activating the venv in both:
+  `buildCommand = "python -m venv /opt/venv && . /opt/venv/bin/activate &&
+  pip install -e ."`, `startCommand = ". /opt/venv/bin/activate && python
+  -m server.server"`. If this ever gets refactored, both commands need to
+  keep matching activation, not just one of them.
 - **Root Directory: leave as `/` (the default), do NOT set it to `server`**
   - this is the opposite of what Vercel needed. `pyproject.toml` lives at
     the repo root, not inside `server/`; scoping Root Directory to `server`
