@@ -1,5 +1,2 @@
-[build]
-buildCommand = "python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -e ."
-
 [deploy]
-startCommand = ". /opt/venv/bin/activate && python -m server.server"
+startCommand = "python -m server.server"

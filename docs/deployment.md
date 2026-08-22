@@ -78,20 +78,33 @@ Needs a host that stays running (not classic serverless) - streamable-http
 holds open server-to-client streams. Railway chosen; could also host the
 database here later if consolidating off Neon ever makes sense.
 
-- `railway.toml` at repo root defines the build and start commands
-  explicitly, rather than trusting Nixpacks' auto-detection to guess right
-  in a monorepo that also has a Next.js app in `web/`.
-  **Real bug hit doing this, not just a style choice:** a plain
-  `buildCommand = "pip install -e ."` deployed successfully but crashed at
-  runtime with `ModuleNotFoundError: No module named 'mcp'` - Nixpacks
-  auto-creates and activates a Python virtualenv at `/opt/venv` for
-  auto-detected install steps, but a *custom* buildCommand doesn't get
-  that activation for free, and neither does a custom startCommand
-  separately. Fixed by explicitly creating/activating the venv in both:
-  `buildCommand = "python -m venv /opt/venv && . /opt/venv/bin/activate &&
-  pip install -e ."`, `startCommand = ". /opt/venv/bin/activate && python
-  -m server.server"`. If this ever gets refactored, both commands need to
-  keep matching activation, not just one of them.
+- `railway.toml` at repo root defines **only** `[deploy] startCommand =
+  "python -m server.server"` - no `[build]` section. Railway's current
+  builder is **Railpack** (not classic Nixpacks - a different, newer
+  system, don't assume Nixpacks-specific advice found online applies here
+  without checking). Two wrong turns taken getting to this, worth knowing
+  about since both looked like they should have worked:
+  1. First attempt had no `railway.toml` at all beyond a plain
+     `buildCommand = "pip install -e ."` - deployed but crashed at runtime
+     with `ModuleNotFoundError: No module named 'mcp'`.
+  2. Second attempt "fixed" it by explicitly creating/activating a venv in
+     both build and start commands (`python -m venv /opt/venv && ...`) -
+     based on real, correct advice for classic Nixpacks. Still crashed the
+     same way. Root cause visible in the Build Logs: Railpack runs build
+     and deploy as genuinely separate container stages, and only carries
+     forward what *it* knows to copy between them - a venv created by a
+     custom command isn't on that list, so `/opt/venv` existed during
+     build and was simply gone by deploy (`/opt/venv/bin/activate: No such
+     file or directory`).
+
+  **The actual fix, confirmed against Railway's own docs:** a custom
+  `buildCommand` runs *in addition to* Railpack's automatic language/
+  package detection and install, not instead of it - "Detected Python" +
+  installing our `pyproject.toml` deps was already happening correctly and
+  persisting to the runtime stage on its own. The custom buildCommand was
+  never necessary and was actively harmful (a redundant, disconnected
+  venv). Removing `[build]` entirely and keeping only the startCommand is
+  correct - let Railpack's own install step do its job.
 - **Root Directory: leave as `/` (the default), do NOT set it to `server`**
   - this is the opposite of what Vercel needed. `pyproject.toml` lives at
     the repo root, not inside `server/`; scoping Root Directory to `server`
