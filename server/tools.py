@@ -105,15 +105,17 @@ def commit_log(
     payload: CommitPayload,
     confirm_duplicate: bool = False,
     confirm_atwater: bool = False,
+    confirm_material_defaults: bool = False,
 ) -> dict:
     result = db.call_scalar(
-        "SELECT fn_commit_log(%s, %s, %s, %s, %s)",
+        "SELECT fn_commit_log(%s, %s, %s, %s, %s, %s)",
         (
             _user_id(),
             staging_id,
             db.as_jsonb(payload.model_dump(mode="json", exclude_none=True)),
             confirm_duplicate,
             confirm_atwater,
+            confirm_material_defaults,
         ),
     )
     return result

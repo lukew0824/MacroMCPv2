@@ -559,11 +559,12 @@ $$ LANGUAGE sql VOLATILE;
 -- must come from the caller's authenticated identity, never from the payload.
 -- =============================================================================
 CREATE OR REPLACE FUNCTION fn_commit_log(
-    p_user_id           bigint,
-    p_staging_id        uuid,
-    p_payload           jsonb,
-    p_confirm_duplicate boolean DEFAULT false,
-    p_confirm_atwater   boolean DEFAULT false
+    p_user_id                   bigint,
+    p_staging_id                uuid,
+    p_payload                   jsonb,
+    p_confirm_duplicate         boolean DEFAULT false,
+    p_confirm_atwater           boolean DEFAULT false,
+    p_confirm_material_defaults boolean DEFAULT false
 ) RETURNS jsonb AS $$
 DECLARE
     v_existing bigint; v_existing_user bigint; v_meal_id bigint; v_log_id bigint; v_item_id bigint;
@@ -610,6 +611,18 @@ BEGIN
         SELECT 'open material gap(s): ' || jsonb_agg(g)::text INTO v_reject
         FROM jsonb_array_elements(v_gaps) g
         WHERE (g->>'status')='open' AND (g->>'is_material')::boolean;
+    END IF;
+
+    -- A material gap taken as a default is not the same as one that was
+    -- actually asked about - don't let the assistant mark something material
+    -- and then silently default through it anyway. Requires the same kind of
+    -- explicit override as the atwater/duplicate gates below, not prompt text.
+    IF v_reject IS NULL AND NOT p_confirm_material_defaults THEN
+        SELECT 'material gap(s) defaulted without asking the user: ' || jsonb_agg(g)::text
+               || ' - ask them, or pass confirm_material_defaults to override'
+          INTO v_reject
+        FROM jsonb_array_elements(v_gaps) g
+        WHERE (g->>'status')='defaulted' AND (g->>'is_material')::boolean;
     END IF;
 
     IF v_reject IS NULL THEN
@@ -816,7 +829,7 @@ BEGIN
         RAISE EXCEPTION 'unknown log_id % for this user', p_old_log_id;
     END IF;
 
-    v_res  := fn_commit_log(p_user_id, p_staging_id, p_payload, true, true);  -- corrections bypass both gates
+    v_res  := fn_commit_log(p_user_id, p_staging_id, p_payload, true, true, true);  -- corrections bypass all three gates
     v_new  := (v_res->>'log_id')::bigint;
     v_meal := (v_res->>'meal_id')::bigint;
     UPDATE meal_logs SET is_superseded = true WHERE id = p_old_log_id;

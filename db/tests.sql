@@ -1,6 +1,7 @@
 -- MacroMCP tests. Run once against a freshly loaded schema.sql.
 -- 13 invariants carried over from the single-user version, T14-T18 for
--- cross-user isolation, T19-T20 for Auth0 identity linking.
+-- cross-user isolation, T19-T20 for Auth0 identity linking, T21-T23 for the
+-- material-default gate (confirm_material_defaults).
 \set ON_ERROR_STOP off
 \pset format aligned
 
@@ -215,3 +216,45 @@ UPDATE users SET auth0_sub = 'google-oauth2|1111111111' WHERE id = :sam;
 INSERT INTO users (username, display_name) VALUES ('unlinked_a','A'), ('unlinked_b','B');
 SELECT count(*) AS both_created_fine FROM users WHERE username IN ('unlinked_a','unlinked_b');
 \echo '(expected: 2 - NULL auth0_sub on both is not a uniqueness conflict)'
+
+-- ========================= MATERIAL DEFAULT GATE ===============================
+
+\echo '\n=== T21: a material gap marked "defaulted" (never asked) is rejected ==='
+SELECT fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
+ 'raw_utterance','a small slice of cake','eaten_at','2026-08-21T20:00:00-04:00',
+ 'meal', jsonb_build_object('name','cake','meal_type_key','snack'),
+ 'gaps', jsonb_build_array(jsonb_build_object('kind','portion_unclear','item_ordinal',1,
+                                               'status','defaulted','is_material',true)),
+ 'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','cake',
+  'raw_text','a small slice of cake','span',jsonb_build_array(0,21),
+  'ingredients',jsonb_build_array(jsonb_build_object('ordinal',1,'food_name','vanilla cake',
+    'grams',80,'kcal_per_100g',380,'protein_per_100g',4,'carbs_per_100g',52,'fat_per_100g',17,
+    'macro_source','llm_estimate','resolution_confidence','estimated'))))));
+\echo '(expected: ERROR - material gap(s) defaulted without asking the user; this is the actual bug ChatGPT/Claude both hit in the wild)'
+
+\echo '\n=== T22: same payload succeeds once confirm_material_defaults is passed ==='
+SELECT (fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
+ 'raw_utterance','a small slice of cake','eaten_at','2026-08-21T20:00:00-04:00',
+ 'meal', jsonb_build_object('name','cake','meal_type_key','snack'),
+ 'gaps', jsonb_build_array(jsonb_build_object('kind','portion_unclear','item_ordinal',1,
+                                               'status','defaulted','is_material',true)),
+ 'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','cake',
+  'raw_text','a small slice of cake','span',jsonb_build_array(0,21),
+  'ingredients',jsonb_build_array(jsonb_build_object('ordinal',1,'food_name','vanilla cake',
+    'grams',80,'kcal_per_100g',380,'protein_per_100g',4,'carbs_per_100g',52,'fat_per_100g',17,
+    'macro_source','llm_estimate','resolution_confidence','estimated'))))),
+ false, false, true) ->> 'meal_id') AS committed_with_override;
+
+\echo '\n=== T23: a material gap actually resolved by asking ("answered") needs no override ==='
+SELECT (fn_commit_log(:luke, fn_new_staging_id(), jsonb_build_object(
+ 'raw_utterance','a slice of banana bread, about 90g','eaten_at','2026-08-21T20:05:00-04:00',
+ 'meal', jsonb_build_object('name','banana bread','meal_type_key','snack'),
+ 'gaps', jsonb_build_array(jsonb_build_object('kind','portion_unclear','item_ordinal',1,
+                                               'status','answered','is_material',true)),
+ 'items', jsonb_build_array(jsonb_build_object('ordinal',1,'name','banana bread',
+  'raw_text','a slice of banana bread, about 90g','span',jsonb_build_array(0,35),
+  'ingredients',jsonb_build_array(jsonb_build_object('ordinal',1,'food_name','banana bread',
+    'grams',90,'kcal_per_100g',326,'protein_per_100g',4.3,'carbs_per_100g',51,'fat_per_100g',12,
+    'macro_source','user_stated','resolution_confidence','user_confirmed'))))))
+ ->> 'meal_id') AS committed_no_override_needed;
+\echo '(expected: succeeds with no confirm flags at all - "answered" was never the problem, only silent "defaulted" was)'
