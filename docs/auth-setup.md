@@ -35,6 +35,23 @@ friction until the Google + Claude path is proven end to end.
    is what makes the issued token actually scoped to our API instead of a
    generic one our `token_verifier` would reject.
 
+   **Real conflict hit doing this (2026-08-21), don't set this until you
+   actually need it:** Default Audience is *tenant-wide* - it silently
+   applies to every login request in the tenant, not just DCR/MCP clients.
+   With it set, the website's own login broke outright: Auth0 rejected the
+   callback with `invalid_request` / "Client ... is not authorized to
+   access resource server ..." - because the website's Application was
+   never granted access to that API, and it was now requesting a token for
+   it anyway just because the tenant default said to. Fixed by clearing
+   Default Audience entirely, since nothing needs it yet - `server/` isn't
+   deployed, no DCR client has ever connected. **Before re-enabling this
+   for Phase 5, solve the scoping properly first** - e.g. authorize the
+   website's Application for the API explicitly (so it's allowed to
+   request that audience too) or find a way to set the default at a
+   narrower scope than the whole tenant. Don't just flip it back on and
+   assume it'll be fine, it broke the website the first time for exactly
+   this reason.
+
 4. **Settings → Advanced**: enable **OIDC Dynamic Application
    Registration**. This is the RFC 7591 DCR support Claude requires - off
    by default.
@@ -115,12 +132,23 @@ Settings) - not the Google Cloud OAuth client, and not the API from Part A.
    (Auth0 rejects the login/logout redirect if the URL isn't explicitly
    whitelisted here - this is a different setting from the Google Cloud
    redirect URI from Part B, which points at Auth0 itself, not at our app.)
-4. Save, then `cd web && npm run dev` and visit `http://localhost:3000` -
+4. **Check Grant Types**, a separate setting from Application Type that
+   doesn't auto-update when you switch one - Settings → **Advanced
+   Settings** (collapsible, near the bottom) → **Grant Types** tab. An app
+   that started life as Machine-to-Machine (like this one did) usually only
+   has `Client Credentials` checked. Check **Authorization Code** and
+   **Refresh Token** too (the latter because login requests `offline_access`
+   scope) - without these, login fails with a generic Auth0 "Oops!,
+   something went wrong" page that doesn't say why.
+5. Save, then `cd web && npm run dev` and visit `http://localhost:3000` -
    "Log in" should now complete a real Google login and land back on the
    page showing your generated username.
 
 Add the real production URL to both Allowed lists later, once Vercel
-deployment (still open - see chat) gives you one.
+deployment gives you one - and if a tenant-wide **Default Audience** is
+ever set (Part A step 3), know that it can break this exact flow with a
+different, more specific error; see the note under that step before
+re-enabling it.
 
 ---
 
